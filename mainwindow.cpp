@@ -122,8 +122,8 @@ void MainWindow::getFiles(QString fileExt)
                 if (filename.endsWith(fileExt,Qt::CaseInsensitive))
                     m_files->append(filename);
             }
-            QApplication::processEvents();
         }
+        QApplication::processEvents();
     }
     qWarning() << "Files found: " << m_files->size();
     m_files->sort(Qt::CaseInsensitive);
