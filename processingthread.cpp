@@ -455,7 +455,7 @@ void ProcessingThread::processFileCaseFix(QString fileName)
     for (int s=0; s < sections.size(); s++)
     {
 
-        QStringList parts = sections.at(s).split(" ", QString::SkipEmptyParts);
+        QStringList parts = sections.at(s).split(" ", Qt::SkipEmptyParts);
         QString oPart;
         for (int i=0; i < parts.size(); i++)
         {

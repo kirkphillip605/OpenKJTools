@@ -5,7 +5,6 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
-#include <QDirIterator>
 
 #if defined(__GNUC__)
 #ifndef _FILE_OFFSET_BITS
@@ -72,11 +71,19 @@ bool ZipHandler::reZipUnsupported(QString filePath)
     }
     QString audioFile;
     QString cdgFile;
-    QDirIterator iterator(tmpDir.path(), QDirIterator::Subdirectories);
-    while (iterator.hasNext()) {
-        iterator.next();
-        if (!iterator.fileInfo().isDir()) {
-            QString fn = iterator.filePath();
+    QStringList directories;
+    directories.append(tmpDir.path());
+    while (!directories.isEmpty()) {
+        QDir currentDir(directories.takeLast());
+        const QFileInfoList entries = currentDir.entryInfoList(
+                    QDir::NoDotAndDotDot | QDir::AllEntries,
+                    QDir::Name | QDir::IgnoreCase);
+        for (const QFileInfo &entry : entries) {
+            if (entry.isDir()) {
+                directories.append(entry.absoluteFilePath());
+                continue;
+            }
+            const QString fn = entry.absoluteFilePath();
             if (fn.endsWith(".cdg", Qt::CaseInsensitive))
             {
                 cdgFile = fn;

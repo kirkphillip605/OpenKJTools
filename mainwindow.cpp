@@ -2,10 +2,13 @@
 #include "ui_mainwindow.h"
 #include <QFileDialog>
 #include <QDir>
-#include <QDirIterator>
 #include <QApplication>
 #include <QDebug>
 #include <QMessageBox>
+#include <QAction>
+#include <QCheckBox>
+#include <QSpinBox>
+#include <QPushButton>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -40,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent) :
         ui->groupBoxThread8->hide();
 
     m_files = new QStringList;
-    connect(ui->actionSettings, SIGNAL(triggered(bool)), this, SLOT(on_actionSettings_activated()));
+    connect(ui->actionSettings, &QAction::triggered, this, &MainWindow::on_actionSettings_activated);
     ui->checkBoxForce->setChecked(settings->forceReprocessing());
 
     ui->spinBoxZipLvl->setValue(settings->zipCompressionLevel());
@@ -50,16 +53,16 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->checkBoxRemoveAfterUnZip->setChecked(settings->removeAfterUnzip());
     ui->checkBoxRemoveAfterZip->setChecked(settings->removeAfterZip());
 
-    connect(ui->checkBoxRemoveAfterUnZip, SIGNAL(clicked(bool)), settings, SLOT(setRemoveAfterUnzip(bool)));
-    connect(ui->checkBoxRemoveAfterZip, SIGNAL(clicked(bool)), settings, SLOT(setRemoveAfterZip(bool)));
+    connect(ui->checkBoxRemoveAfterUnZip, &QCheckBox::clicked, settings, &Settings::setRemoveAfterUnzip);
+    connect(ui->checkBoxRemoveAfterZip, &QCheckBox::clicked, settings, &Settings::setRemoveAfterZip);
 
-    connect(settings, SIGNAL(zipCompressionLevelChanged(int)), ui->spinBoxZipLvl, SLOT(setValue(int)));
-    connect(settings, SIGNAL(zipCompressionLevelChanged(int)), ui->spinBoxZipLvl2, SLOT(setValue(int)));
-    connect(settings, SIGNAL(zipCompressionLevelChanged(int)), ui->spinBoxZipLvl3, SLOT(setValue(int)));
+    connect(settings, &Settings::zipCompressionLevelChanged, ui->spinBoxZipLvl, &QSpinBox::setValue);
+    connect(settings, &Settings::zipCompressionLevelChanged, ui->spinBoxZipLvl2, &QSpinBox::setValue);
+    connect(settings, &Settings::zipCompressionLevelChanged, ui->spinBoxZipLvl3, &QSpinBox::setValue);
 
-    connect(ui->spinBoxZipLvl, SIGNAL(valueChanged(int)), settings, SLOT(setZipCompressionLevel(int)));
-    connect(ui->spinBoxZipLvl2, SIGNAL(valueChanged(int)), settings, SLOT(setZipCompressionLevel(int)));
-    connect(ui->spinBoxZipLvl3, SIGNAL(valueChanged(int)), settings, SLOT(setZipCompressionLevel(int)));
+    connect(ui->spinBoxZipLvl, qOverload<int>(&QSpinBox::valueChanged), settings, &Settings::setZipCompressionLevel);
+    connect(ui->spinBoxZipLvl2, qOverload<int>(&QSpinBox::valueChanged), settings, &Settings::setZipCompressionLevel);
+    connect(ui->spinBoxZipLvl3, qOverload<int>(&QSpinBox::valueChanged), settings, &Settings::setZipCompressionLevel);
 
     m_path = settings->lastPath();
     ui->labelPath->setText((settings->lastPath() != "") ? settings->lastPath() : "None");
@@ -91,12 +94,19 @@ void MainWindow::getFiles(QString fileExt)
 {
     ui->labelStatus1_2->setText("Scanning for files");
     m_files->clear();
-    QDir dir(m_path);
-    QDirIterator iterator(dir.absolutePath(), QDirIterator::Subdirectories);
-    while (iterator.hasNext()) {
-        iterator.next();
-        if (!iterator.fileInfo().isDir()) {
-            QString filename = iterator.filePath();
+    QStringList directories;
+    directories.append(QDir(m_path).absolutePath());
+    while (!directories.isEmpty()) {
+        QDir currentDir(directories.takeLast());
+        const QFileInfoList entries = currentDir.entryInfoList(
+                    QDir::NoDotAndDotDot | QDir::AllEntries,
+                    QDir::Name | QDir::IgnoreCase);
+        for (const QFileInfo &entry : entries) {
+            if (entry.isDir()) {
+                directories.append(entry.absoluteFilePath());
+                continue;
+            }
+            const QString filename = entry.absoluteFilePath();
             if (fileExt == "allmp3g")
             {
                 if (filename.endsWith("cdg", Qt::CaseInsensitive) || filename.endsWith("zip", Qt::CaseInsensitive))
@@ -112,8 +122,8 @@ void MainWindow::getFiles(QString fileExt)
                 if (filename.endsWith(fileExt,Qt::CaseInsensitive))
                     m_files->append(filename);
             }
+            QApplication::processEvents();
         }
-        QApplication::processEvents();
     }
     qWarning() << "Files found: " << m_files->size();
     m_files->sort(Qt::CaseInsensitive);
@@ -219,59 +229,59 @@ void MainWindow::on_btnStart_clicked()
     m_thread7->setObjectName("Thread7");
     m_thread8->setObjectName("Thread8");
 
-    connect(m_thread1, SIGNAL(processingFile(QString)), ui->labelCurrentFile1_2, SLOT(setText(QString)));
-    connect(m_thread2, SIGNAL(processingFile(QString)), ui->labelCurrentFile2_2, SLOT(setText(QString)));
-    connect(m_thread3, SIGNAL(processingFile(QString)), ui->labelCurrentFile3_2, SLOT(setText(QString)));
-    connect(m_thread4, SIGNAL(processingFile(QString)), ui->labelCurrentFile4_2, SLOT(setText(QString)));
-    connect(m_thread5, SIGNAL(processingFile(QString)), ui->labelCurrentFile5_2, SLOT(setText(QString)));
-    connect(m_thread6, SIGNAL(processingFile(QString)), ui->labelCurrentFile6_2, SLOT(setText(QString)));
-    connect(m_thread7, SIGNAL(processingFile(QString)), ui->labelCurrentFile7_2, SLOT(setText(QString)));
-    connect(m_thread8, SIGNAL(processingFile(QString)), ui->labelCurrentFile8_2, SLOT(setText(QString)));
+    connect(m_thread1, &ProcessingThread::processingFile, ui->labelCurrentFile1_2, &QLabel::setText);
+    connect(m_thread2, &ProcessingThread::processingFile, ui->labelCurrentFile2_2, &QLabel::setText);
+    connect(m_thread3, &ProcessingThread::processingFile, ui->labelCurrentFile3_2, &QLabel::setText);
+    connect(m_thread4, &ProcessingThread::processingFile, ui->labelCurrentFile4_2, &QLabel::setText);
+    connect(m_thread5, &ProcessingThread::processingFile, ui->labelCurrentFile5_2, &QLabel::setText);
+    connect(m_thread6, &ProcessingThread::processingFile, ui->labelCurrentFile6_2, &QLabel::setText);
+    connect(m_thread7, &ProcessingThread::processingFile, ui->labelCurrentFile7_2, &QLabel::setText);
+    connect(m_thread8, &ProcessingThread::processingFile, ui->labelCurrentFile8_2, &QLabel::setText);
 
-    connect(m_thread1, SIGNAL(stateChanged(QString)), ui->labelStatus1_2, SLOT(setText(QString)));
-    connect(m_thread2, SIGNAL(stateChanged(QString)), ui->labelStatus2_2, SLOT(setText(QString)));
-    connect(m_thread3, SIGNAL(stateChanged(QString)), ui->labelStatus3_2, SLOT(setText(QString)));
-    connect(m_thread4, SIGNAL(stateChanged(QString)), ui->labelStatus4_2, SLOT(setText(QString)));
-    connect(m_thread5, SIGNAL(stateChanged(QString)), ui->labelStatus5_2, SLOT(setText(QString)));
-    connect(m_thread6, SIGNAL(stateChanged(QString)), ui->labelStatus6_2, SLOT(setText(QString)));
-    connect(m_thread7, SIGNAL(stateChanged(QString)), ui->labelStatus7_2, SLOT(setText(QString)));
-    connect(m_thread8, SIGNAL(stateChanged(QString)), ui->labelStatus8_2, SLOT(setText(QString)));
+    connect(m_thread1, &ProcessingThread::stateChanged, ui->labelStatus1_2, &QLabel::setText);
+    connect(m_thread2, &ProcessingThread::stateChanged, ui->labelStatus2_2, &QLabel::setText);
+    connect(m_thread3, &ProcessingThread::stateChanged, ui->labelStatus3_2, &QLabel::setText);
+    connect(m_thread4, &ProcessingThread::stateChanged, ui->labelStatus4_2, &QLabel::setText);
+    connect(m_thread5, &ProcessingThread::stateChanged, ui->labelStatus5_2, &QLabel::setText);
+    connect(m_thread6, &ProcessingThread::stateChanged, ui->labelStatus6_2, &QLabel::setText);
+    connect(m_thread7, &ProcessingThread::stateChanged, ui->labelStatus7_2, &QLabel::setText);
+    connect(m_thread8, &ProcessingThread::stateChanged, ui->labelStatus8_2, &QLabel::setText);
 
-    connect(m_thread1, SIGNAL(processingComplete()), this, SLOT(threadDone()));
-    connect(m_thread2, SIGNAL(processingComplete()), this, SLOT(threadDone()));
-    connect(m_thread3, SIGNAL(processingComplete()), this, SLOT(threadDone()));
-    connect(m_thread4, SIGNAL(processingComplete()), this, SLOT(threadDone()));
-    connect(m_thread5, SIGNAL(processingComplete()), this, SLOT(threadDone()));
-    connect(m_thread6, SIGNAL(processingComplete()), this, SLOT(threadDone()));
-    connect(m_thread7, SIGNAL(processingComplete()), this, SLOT(threadDone()));
-    connect(m_thread8, SIGNAL(processingComplete()), this, SLOT(threadDone()));
+    connect(m_thread1, &ProcessingThread::processingComplete, this, &MainWindow::threadDone);
+    connect(m_thread2, &ProcessingThread::processingComplete, this, &MainWindow::threadDone);
+    connect(m_thread3, &ProcessingThread::processingComplete, this, &MainWindow::threadDone);
+    connect(m_thread4, &ProcessingThread::processingComplete, this, &MainWindow::threadDone);
+    connect(m_thread5, &ProcessingThread::processingComplete, this, &MainWindow::threadDone);
+    connect(m_thread6, &ProcessingThread::processingComplete, this, &MainWindow::threadDone);
+    connect(m_thread7, &ProcessingThread::processingComplete, this, &MainWindow::threadDone);
+    connect(m_thread8, &ProcessingThread::processingComplete, this, &MainWindow::threadDone);
 
-    connect(m_thread1, SIGNAL(processingAborted()), this, SLOT(threadAborted()));
-    connect(m_thread2, SIGNAL(processingAborted()), this, SLOT(threadAborted()));
-    connect(m_thread3, SIGNAL(processingAborted()), this, SLOT(threadAborted()));
-    connect(m_thread4, SIGNAL(processingAborted()), this, SLOT(threadAborted()));
-    connect(m_thread5, SIGNAL(processingAborted()), this, SLOT(threadAborted()));
-    connect(m_thread6, SIGNAL(processingAborted()), this, SLOT(threadAborted()));
-    connect(m_thread7, SIGNAL(processingAborted()), this, SLOT(threadAborted()));
-    connect(m_thread8, SIGNAL(processingAborted()), this, SLOT(threadAborted()));
+    connect(m_thread1, &ProcessingThread::processingAborted, this, &MainWindow::threadAborted);
+    connect(m_thread2, &ProcessingThread::processingAborted, this, &MainWindow::threadAborted);
+    connect(m_thread3, &ProcessingThread::processingAborted, this, &MainWindow::threadAborted);
+    connect(m_thread4, &ProcessingThread::processingAborted, this, &MainWindow::threadAborted);
+    connect(m_thread5, &ProcessingThread::processingAborted, this, &MainWindow::threadAborted);
+    connect(m_thread6, &ProcessingThread::processingAborted, this, &MainWindow::threadAborted);
+    connect(m_thread7, &ProcessingThread::processingAborted, this, &MainWindow::threadAborted);
+    connect(m_thread8, &ProcessingThread::processingAborted, this, &MainWindow::threadAborted);
 
-    connect(m_thread1, SIGNAL(fileProcessed()), this, SLOT(fileProcessed()));
-    connect(m_thread2, SIGNAL(fileProcessed()), this, SLOT(fileProcessed()));
-    connect(m_thread3, SIGNAL(fileProcessed()), this, SLOT(fileProcessed()));
-    connect(m_thread4, SIGNAL(fileProcessed()), this, SLOT(fileProcessed()));
-    connect(m_thread5, SIGNAL(fileProcessed()), this, SLOT(fileProcessed()));
-    connect(m_thread6, SIGNAL(fileProcessed()), this, SLOT(fileProcessed()));
-    connect(m_thread7, SIGNAL(fileProcessed()), this, SLOT(fileProcessed()));
-    connect(m_thread8, SIGNAL(fileProcessed()), this, SLOT(fileProcessed()));
+    connect(m_thread1, &ProcessingThread::fileProcessed, this, &MainWindow::fileProcessed);
+    connect(m_thread2, &ProcessingThread::fileProcessed, this, &MainWindow::fileProcessed);
+    connect(m_thread3, &ProcessingThread::fileProcessed, this, &MainWindow::fileProcessed);
+    connect(m_thread4, &ProcessingThread::fileProcessed, this, &MainWindow::fileProcessed);
+    connect(m_thread5, &ProcessingThread::fileProcessed, this, &MainWindow::fileProcessed);
+    connect(m_thread6, &ProcessingThread::fileProcessed, this, &MainWindow::fileProcessed);
+    connect(m_thread7, &ProcessingThread::fileProcessed, this, &MainWindow::fileProcessed);
+    connect(m_thread8, &ProcessingThread::fileProcessed, this, &MainWindow::fileProcessed);
 
-    connect(ui->btnStop, SIGNAL(clicked()), m_thread1, SLOT(stopProcessing()));
-    connect(ui->btnStop, SIGNAL(clicked()), m_thread2, SLOT(stopProcessing()));
-    connect(ui->btnStop, SIGNAL(clicked()), m_thread3, SLOT(stopProcessing()));
-    connect(ui->btnStop, SIGNAL(clicked()), m_thread4, SLOT(stopProcessing()));
-    connect(ui->btnStop, SIGNAL(clicked()), m_thread5, SLOT(stopProcessing()));
-    connect(ui->btnStop, SIGNAL(clicked()), m_thread6, SLOT(stopProcessing()));
-    connect(ui->btnStop, SIGNAL(clicked()), m_thread7, SLOT(stopProcessing()));
-    connect(ui->btnStop, SIGNAL(clicked()), m_thread8, SLOT(stopProcessing()));
+    connect(ui->btnStop, &QPushButton::clicked, m_thread1, &ProcessingThread::stopProcessing);
+    connect(ui->btnStop, &QPushButton::clicked, m_thread2, &ProcessingThread::stopProcessing);
+    connect(ui->btnStop, &QPushButton::clicked, m_thread3, &ProcessingThread::stopProcessing);
+    connect(ui->btnStop, &QPushButton::clicked, m_thread4, &ProcessingThread::stopProcessing);
+    connect(ui->btnStop, &QPushButton::clicked, m_thread5, &ProcessingThread::stopProcessing);
+    connect(ui->btnStop, &QPushButton::clicked, m_thread6, &ProcessingThread::stopProcessing);
+    connect(ui->btnStop, &QPushButton::clicked, m_thread7, &ProcessingThread::stopProcessing);
+    connect(ui->btnStop, &QPushButton::clicked, m_thread8, &ProcessingThread::stopProcessing);
 
     ui->btnStart->setEnabled(false);
     ui->btnStop->setEnabled(true);
