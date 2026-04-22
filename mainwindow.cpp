@@ -100,7 +100,7 @@ void MainWindow::getFiles(QString fileExt)
         QDir currentDir(directories.takeLast());
         const QFileInfoList entries = currentDir.entryInfoList(
                     QDir::NoDotAndDotDot | QDir::AllEntries,
-                    QDir::Name | QDir::IgnoreCase);
+                    QDir::NoSort);
         for (const QFileInfo &entry : entries) {
             if (entry.isDir()) {
                 directories.append(entry.absoluteFilePath());
